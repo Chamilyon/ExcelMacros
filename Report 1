@@ -1,0 +1,61 @@
+Sub GenerateReport()
+    Dim ws As Worksheet
+    Dim rng As Range
+    Dim tbl As ListObject
+    Dim keyRange As Range
+    Dim lastRow As Long
+    Dim dailyCount As Long, weeklyCount As Long, monthlyCount As Long
+    Dim dailyColor As Long, weeklyColor As Long, monthlyColor As Long
+    
+    ' Set the worksheet
+    Set ws = ThisWorkbook.Worksheets("Sheet1") ' Replace "Sheet1" with your actual sheet name
+    
+    ' Auto resize columns A through H
+    ws.Range("A:H").EntireColumn.AutoFit
+    
+    ' Filter column B alphabetically
+    Set rng = ws.Range("B:B")
+    rng.AutoFilter Field:=1, Operator:=xlFilterValues, Criteria2:=Array(1, "A to Z"), VisibleDropDown:=False
+    
+    ' Create table starting from cell P3
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    Set tbl = ws.ListObjects.Add(xlSrcRange, ws.Range("P3:R" & lastRow), , xlYes)
+    tbl.TableStyle = "TableStyleLight2"
+    
+    ' Set table headers
+    tbl.HeaderRowRange.Value = Array("Report Name", "Frequency", "Count")
+    
+    ' Populate table values
+    tbl.ListColumns("Report Name").DataBodyRange.Formula = "=B4"
+    tbl.ListColumns("Frequency").DataBodyRange.Formula = "=IF(C4=""Daily"",""Daily"",IF(C4=""Weekly"",""Weekly"",IF(C4=""Monthly"",""Monthly"","""")))"
+    
+    ' Count and format report frequency
+    dailyCount = Application.WorksheetFunction.CountIf(tbl.ListColumns("Frequency").DataBodyRange, "Daily")
+    weeklyCount = Application.WorksheetFunction.CountIf(tbl.ListColumns("Frequency").DataBodyRange, "Weekly")
+    monthlyCount = Application.WorksheetFunction.CountIf(tbl.ListColumns("Frequency").DataBodyRange, "Monthly")
+    
+    tbl.ListColumns("Count").DataBodyRange.Value = Application.Transpose(Array(dailyCount, weeklyCount, monthlyCount))
+    
+    ' Format count column
+    Set rng = tbl.ListColumns("Count").DataBodyRange
+    rng.FormatConditions.Delete
+    rng.FormatConditions.Add Type:=xlCellValue, Operator:=xlEqual, Formula1:="=5"
+    rng.FormatConditions(1).Interior.Color = RGB(0, 255, 0) ' Green
+    rng.FormatConditions.Add Type:=xlCellValue, Operator:=xlBetween, Formula1:="=1", Formula2:="=4"
+    rng.FormatConditions(2).Interior.Color = RGB(255, 255, 0) ' Yellow
+    rng.FormatConditions.Add Type:=xlCellValue, Operator:=xlEqual, Formula1:="=0"
+    rng.FormatConditions(3).Interior.Color = RGB(255, 0, 0) ' Red
+    
+    ' Set key range
+    Set keyRange = ws.Range("P" & lastRow + 4)
+    keyRange.Value = "Key:"
+    keyRange.Font.Bold = True
+    keyRange.Offset(0, 1).Value = "Green: All reports generated"
+    keyRange.Offset(1, 1).Value = "Yellow: Some reports not generated"
+    keyRange.Offset(2, 1).Value = "Red: No report generated"
+    
+    ' Adjust table size
+    tbl.Resize tbl.Range.Resize(tbl.HeaderRowRange.Rows.Count + tbl.ListRows.Count)
+    
+    ' Adjust print settings
+    With ws
